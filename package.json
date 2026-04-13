@@ -2,15 +2,11 @@
   "name": "railrouter-lite",
   "version": "1.0.0",
   "description": "Intelligent real-time payment rail router for AI agents. Chooses the optimal rail (Stripe MPP + x402 + Google AP2) and compounds routing intelligence in D1.",
-  "main": "src/index.js",
+  "private": true,
   "scripts": {
-    "start": "node src/index.js",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "db:init": "wrangler d1 execute railrouter-lite-db --file=./schema.sql --remote"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

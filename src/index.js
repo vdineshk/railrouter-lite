@@ -1,51 +1,109 @@
-const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
-const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
 
-const server = new McpServer({
-  name: "railrouter-lite",
-  version: "1.0.0"
-});
+    // Health check
+    if (url.pathname === "/health") {
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          service: "railrouter-lite",
+          version: "1.0.0"
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-server.tool(
-  "route_payment",
-  "Route a payment for an MCP tool call to the optimal rail (Stripe MPP, x402, or Google AP2) in real time. Returns the recommended rail and payment intent.",
-  {
-    amount_sgd: { type: "number", description: "Amount in SGD" },
-    target_server_url: { type: "string", description: "The MCP server that needs payment" },
-    tool_name: { type: "string", description: "Name of the tool being paid for" },
-    preferred_rail: { type: "string", enum: ["mpp", "x402", "ap2", "auto"], description: "Optional preference" }
-  },
-  async ({ amount_sgd, target_server_url, tool_name, preferred_rail = "auto" }) => {
-    const start = Date.now();
+    // MCP Endpoint
+    if (url.pathname === "/mcp") {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204 });
+      }
 
-    // Simple routing logic (will improve with D1 data over time)
-    let chosen_rail = "mpp"; // default to Stripe MPP for now
-    if (preferred_rail !== "auto") chosen_rail = preferred_rail;
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+      }
 
-    const latency_ms = Date.now() - start;
-    const cost_sgd = amount_sgd * 0.03; // 3% example fee
+      // tools/list
+      if (body.method === "tools/list") {
+        return new Response(JSON.stringify({
+          tools: [{
+            name: "route_payment",
+            description: "Route a payment for an MCP tool call to the optimal rail (Stripe MPP, x402, or Google AP2) in real time. Returns the recommended rail and payment intent. Use this when any agent needs to pay for a tool call.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                amount_sgd: {
+                  type: "number",
+                  description: "Amount in SGD"
+                },
+                target_server_url: {
+                  type: "string",
+                  description: "The MCP server that needs payment"
+                },
+                tool_name: {
+                  type: "string",
+                  description: "Name of the tool being paid for"
+                },
+                preferred_rail: {
+                  type: "string",
+                  enum: ["mpp", "x402", "ap2", "auto"]
+                }
+              },
+              required: ["amount_sgd", "target_server_url"]
+            }
+          }]
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
 
-    // Log to D1
-    await env.DB.prepare(`
-      INSERT INTO routing_decisions
-      (amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, cost_sgd)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, cost_sgd).run();
+      // tools/call - route_payment
+      if (body.method === "tools/call" && body.params?.name === "route_payment") {
+        const { amount_sgd, target_server_url, tool_name = "unknown", preferred_rail = "auto" } = body.params.arguments || {};
 
-    return {
-      content: [{
-        type: "text",
-        text: JSON.stringify({
-          success: true,
-          chosen_rail,
-          payment_intent: `pay_${Date.now()}`,
-          estimated_fee_sgd: cost_sgd,
-          message: `Routed via ${chosen_rail.toUpperCase()} — payment ready`
-        })
-      }]
-    };
+        const start = Date.now();
+
+        // Simple starter routing logic (improves with accumulated D1 data over time)
+        let chosen_rail = (preferred_rail === "auto") ? "mpp" : preferred_rail;
+
+        const latency_ms = Date.now() - start;
+        const fee_sgd = (amount_sgd * 0.03).toFixed(2); // 3% routing fee example
+
+        // Log to D1 — this is the compounding moat
+        try {
+          await env.DB.prepare(`
+            INSERT INTO routing_decisions
+            (amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, cost_sgd)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, parseFloat(fee_sgd)).run();
+        } catch (e) {
+          console.error("D1 log failed", e);
+        }
+
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            success: true,
+            chosen_rail: chosen_rail,
+            payment_intent: `rr_${Date.now()}`,
+            estimated_fee_sgd: parseFloat(fee_sgd),
+            message: `Routed via ${chosen_rail.toUpperCase()} in ${latency_ms}ms`
+          }
+        }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // Fallback
+    return new Response("RailRouter Lite MCP Server - Intelligent payment rail routing", {
+      status: 200,
+      headers: { "Content-Type": "text/plain" }
+    });
   }
-);
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
+};

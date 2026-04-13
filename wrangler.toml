@@ -1,9 +1,8 @@
 name = "railrouter-lite"
 main = "src/index.js"
-compatibility_date = "2025-04-01"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2026-04-01"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "railrouter-lite-db"
-database_id = "PLACEHOLDER_REPLACE_AFTER_CREATE"
+database_id = ""
