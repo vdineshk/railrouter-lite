@@ -5,4 +5,4 @@ compatibility_date = "2026-04-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "railrouter-lite-db"
-database_id = ""
+database_id = "16f428e0-95bf-4935-8a89-70b15d5ae7bf"
