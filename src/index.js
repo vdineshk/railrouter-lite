@@ -60,20 +60,24 @@ export default {
 
       if (body.method === "tools/list") {
         return new Response(JSON.stringify({
-          tools: [{
-            name: "route_payment",
-            description: "Route a payment for an MCP tool call to the optimal rail (Stripe MPP, x402, or Google AP2) in real time. Returns the recommended rail and payment intent. Use this when any agent needs to pay for a tool call.",
-            inputSchema: {
-              type: "object",
-              properties: {
-                amount_sgd: { type: "number", description: "Amount in SGD" },
-                target_server_url: { type: "string", description: "The MCP server that needs payment" },
-                tool_name: { type: "string", description: "Name of the tool being paid for" },
-                preferred_rail: { type: "string", enum: ["mpp", "x402", "ap2", "auto"] }
-              },
-              required: ["amount_sgd", "target_server_url"]
-            }
-          }]
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            tools: [{
+              name: "route_payment",
+              description: "Route a payment for an MCP tool call to the optimal rail (Stripe MPP, x402, or Google AP2) in real time. Returns the recommended rail and payment intent. Use this when any agent needs to pay for a tool call.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  amount_sgd: { type: "number", description: "Amount in SGD" },
+                  target_server_url: { type: "string", description: "The MCP server that needs payment" },
+                  tool_name: { type: "string", description: "Name of the tool being paid for" },
+                  preferred_rail: { type: "string", enum: ["mpp", "x402", "ap2", "auto"] }
+                },
+                required: ["amount_sgd", "target_server_url"]
+              }
+            }]
+          }
         }), { headers: { "Content-Type": "application/json" } });
       }
 
