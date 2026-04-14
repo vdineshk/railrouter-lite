@@ -2,26 +2,21 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Health check
     if (url.pathname === "/health") {
-      return new Response(
-        JSON.stringify({ 
-          status: "ok", 
-          service: "railrouter-lite",
-          version: "1.0.0"
-        }),
-        { headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({
+        status: "ok",
+        service: "railrouter-lite",
+        version: "1.0.0"
+      }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // MCP Endpoint
     if (url.pathname === "/mcp") {
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204 });
       }
 
-      // Always return tools/list for discovery (GET or empty POST)
-      if (request.method === "GET" || request.headers.get("content-length") === "0" || !request.headers.get("content-type")?.includes("json")) {
+      // MCPize discovery probe (GET or empty body)
+      if (request.method === "GET" || !request.headers.get("content-type")?.includes("json")) {
         return new Response(JSON.stringify({
           tools: [{
             name: "route_payment",
@@ -37,12 +32,9 @@ export default {
               required: ["amount_sgd", "target_server_url"]
             }
           }]
-        }), {
-          headers: { "Content-Type": "application/json" }
-        });
+        }), { headers: { "Content-Type": "application/json" } });
       }
 
-      // Normal MCP tools/call
       let body;
       try {
         body = await request.json();
@@ -66,9 +58,7 @@ export default {
               required: ["amount_sgd", "target_server_url"]
             }
           }]
-        }), {
-          headers: { "Content-Type": "application/json" }
-        });
+        }), { headers: { "Content-Type": "application/json" } });
       }
 
       if (body.method === "tools/call" && body.params?.name === "route_payment") {
@@ -82,27 +72,23 @@ export default {
 
         try {
           await env.DB.prepare(`
-            INSERT INTO routing_decisions 
+            INSERT INTO routing_decisions
             (amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, cost_sgd)
             VALUES (?, ?, ?, ?, ?, ?)
           `).bind(amount_sgd, target_server_url, tool_name, chosen_rail, latency_ms, parseFloat(fee_sgd)).run();
-        } catch (e) {
-          console.error("D1 log failed", e);
-        }
+        } catch (e) {}
 
         return new Response(JSON.stringify({
           jsonrpc: "2.0",
           id: body.id,
           result: {
             success: true,
-            chosen_rail: chosen_rail,
+            chosen_rail,
             payment_intent: `rr_${Date.now()}`,
             estimated_fee_sgd: parseFloat(fee_sgd),
             message: `Routed via ${chosen_rail.toUpperCase()} in ${latency_ms}ms`
           }
-        }), {
-          headers: { "Content-Type": "application/json" }
-        });
+        }), { headers: { "Content-Type": "application/json" } });
       }
     }
 
