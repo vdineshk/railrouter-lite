@@ -10,7 +10,7 @@ export default {
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    if (url.pathname === "/mcp") {
+    if (url.pathname === "/" || url.pathname === "/mcp") {
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204 });
       }
