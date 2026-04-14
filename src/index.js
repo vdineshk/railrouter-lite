@@ -42,6 +42,22 @@ export default {
         return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
       }
 
+      if (body.method === "initialize") {
+        return new Response(JSON.stringify({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            protocolVersion: "2024-11-05",
+            capabilities: { tools: {} },
+            serverInfo: { name: "railrouter-lite", version: "1.0.0" }
+          }
+        }), { headers: { "Content-Type": "application/json" } });
+      }
+
+      if (body.method === "notifications/initialized") {
+        return new Response(JSON.stringify({ jsonrpc: "2.0" }), { headers: { "Content-Type": "application/json" } });
+      }
+
       if (body.method === "tools/list") {
         return new Response(JSON.stringify({
           tools: [{
@@ -90,6 +106,13 @@ export default {
           }
         }), { headers: { "Content-Type": "application/json" } });
       }
+
+      // Fallback for any other MCP method
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0",
+        id: body.id,
+        error: { code: -32601, message: "Method not found" }
+      }), { headers: { "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ error: "Not found" }), { status: 404 });
