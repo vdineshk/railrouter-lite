@@ -47,7 +47,7 @@ export default {
           jsonrpc: "2.0",
           id: body.id,
           result: {
-            protocolVersion: "2024-11-05",
+            protocolVersion: "2025-03-26",
             capabilities: { tools: {} },
             serverInfo: { name: "railrouter-lite", version: "1.0.0" }
           }
