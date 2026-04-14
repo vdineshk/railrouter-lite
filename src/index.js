@@ -60,9 +60,37 @@ export default {
       return json({ status: "ok", service: "railrouter-lite", version: "1.0.0" });
     }
 
+    // SSE endpoint — keeps connection open for server-to-client events
+    if (url.pathname === "/sse" || ((url.pathname === "/" || url.pathname === "/mcp") && request.method === "GET")) {
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+
+      const sessionId = crypto.randomUUID();
+
+      // Send initial endpoint event so client knows where to POST
+      writer.write(encoder.encode(`event: endpoint\ndata: ${url.origin}/mcp?sessionId=${sessionId}\n\n`));
+
+      // Keep alive for 30s then close
+      const keepAlive = setInterval(async () => {
+        try { await writer.write(encoder.encode(": ping\n\n")); } catch { clearInterval(keepAlive); }
+      }, 15000);
+
+      setTimeout(() => { clearInterval(keepAlive); writer.close(); }, 30000);
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          ...CORS
+        }
+      });
+    }
+
     if (url.pathname === "/" || url.pathname === "/mcp") {
-      // MCPize discovery probe (GET or non-JSON POST)
-      if (request.method === "GET" || !request.headers.get("content-type")?.includes("json")) {
+      // Non-JSON POST fallback (discovery probe)
+      if (request.method !== "POST" || !request.headers.get("content-type")?.includes("json")) {
         return json({ tools: [TOOL] });
       }
 
