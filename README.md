@@ -2,23 +2,22 @@
 
 **Intelligent real-time payment rail router for AI agents.**
 
-**Live MCP Endpoint:**  
+**Live MCP Endpoint**  
 `https://railrouter-lite.sgdata.workers.dev/mcp`
 
-### Tool
-**route_payment**
+### Tool: `route_payment`
 
-Routes a payment to the optimal rail (Stripe MPP, x402, or Google AP2) in real time.
+Routes a payment request to the optimal rail (Stripe MPP, x402, or Google AP2) in real time based on cost, latency, and success rate.
 
-**Input Schema:**
+**Input Schema**
 ```json
 {
-  "amount_sgd": { "type": "number" },
-  "target_server_url": { "type": "string" },
-  "tool_name": { "type": "string" },
+  "amount_sgd": { "type": "number", "description": "Amount in SGD" },
+  "target_server_url": { "type": "string", "description": "The MCP server that needs payment" },
+  "tool_name": { "type": "string", "description": "Name of the tool being paid for" },
   "preferred_rail": { "type": "string", "enum": ["mpp", "x402", "ap2", "auto"] }
 }
-Response example:
+Response Example
 JSON{
   "success": true,
   "chosen_rail": "mpp",
@@ -26,7 +25,7 @@ JSON{
   "estimated_fee_sgd": 0.13,
   "message": "Routed via MPP in 12ms"
 }
-Every routing decision is logged to D1 for compounding intelligence (cost, latency, success rate per category). No other server offers intelligent cross-rail routing.
+Every routing decision is automatically logged to D1, creating compounding intelligence (cost, latency, success rate per category). No other MCP server offers intelligent cross-rail routing.
 Compatible with LangChain, LangGraph, CrewAI, AutoGen and any MCP client.
 GitHub: https://github.com/vdineshk/railrouter-lite
 Pricing
